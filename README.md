@@ -1,1 +1,2 @@
-# StewartPortfolio
+# Predicting Auto Claim Severity with XGBoost
+In this project, I worked with classmates, Connor Ray and Aaryan Gupta, to predict auto claim severity using an XGBoost model. We performed extensive exploratory data analysis and model optimization in order to predict total claim severity, analyze the factors that contributed to the severity, and classify each customer into a relative risk level. This project showcases my ability to use advanced machine learning models to analyze a large dataset and produce valuable insights. 
