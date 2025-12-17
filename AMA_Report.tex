@@ -1,0 +1,143 @@
+\documentclass[11pt]{article}
+\usepackage{amssymb,amsmath,amsthm,latexsym,mathrsfs,array,epsfig,sudoku,url,graphicx,hyperref}
+\usepackage{minted}
+\usepackage{bbm}
+\usemintedstyle{vs}
+
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+
+\textheight 8.5in
+\textwidth 6.25in
+\voffset= -.55in
+\hoffset= -.55in
+
+\setlength{\parindent}{15pt}
+
+\date{}
+
+\begin{document}
+\thispagestyle{empty}
+
+\begin{center}{\textbf{STAT 4250 \\ Final Project Report \\ Group 7}}\end{center}
+\begin{center}{Connor Ray, Jacob Stewart}\end{center}
+
+\vspace{.15in}
+
+\section*{Motivation}
+
+Claims are both the reason the insurance industry exists and the enemy of its profitability. For an insurance carrier, when claims will happen, who they will happen to, and how severe the claim will be is crucial information to have. Unfortunately, claims do not follow a schedule and each one is unique with its own details about the insured and their situation. Having a proper understanding and supported assumptions about the people and things that the carrier insures is the most important aspect of efficient policy writing and rate making. The aim of this project is to uncover important relationships from claims data that will allow the insurance carrier to more properly reserve for future losses and set appropriate premiums for their clients. \\
+
+In order to accomplish this, we used three key research questions to guide our study. 
+\begin{enumerate}
+    \item Using the data, how closely can we predict an individual's total claim severity?
+    \item What factors most strongly influence claim severity?
+    \item Based on our data, can we assign individuals into groups based on their risk level?
+\end{enumerate}
+
+\section*{Dataset}
+
+The dataset used in this study is     
+\href{https://www.kaggle.com/datasets/thebumpkin/auto-insurance-claims-updated-to-2024/data?utm_source=chatgpt.com}{Auto Insurance Claims (Updated to 2024)} 
+which holds auto insurance claims data initially created in 2011 with dollar amounts adjusted to 2024. The dataset includes 9,134 auto claims and 34 features describing the insured. The features include information regarding the location of the claim, various demographics of the insured, policy spefics, and vehicle details. \\
+
+\section*{Process}
+
+\subsection*{Exploratory Data Analysis}
+
+To begin our study we conducted extensive exploratory data analysis of the dataset. We collected information on each features and conducted a five-number summary on our main target feature "Total Claim Amount" which we used to measured total claim severity. Upon our observation of the dataset we begin dropping columns that reasonably would not be strong predictors of total claim amount. The first round of column elimination was based on judgment and we removed the following columns that mostly tell information that is not related to the claim itself: (Customer, Customer Lifetime Value, Response, Effective to Date, Sales Channel, Sales Channel Index). \\
+
+Our EDA showed that the dataset contained primarily categorical data which did not allow us to see many direct relationships between each feature and Total Claim Amount. This finding led us to decide to use a machine learning model called Extreme Gradient Boosting (XGBoost) to predict our target. XGBoost excels with non-linear relationships because it uses boosting to strengthen many groups of weak learning decision trees into a robust predictor. The dataset already had a few of the categorical variables encoded with indexes, but we encoded others ourselves including Income, State, and Gender. \\
+
+To make sure that cardinality is low among categorical features we checked the number of unique values in each column. To further gain knowledge about each feature's potential predicting power, we plotted the distribution of each features group means as they relate to Total Claim Amount. This step was the most revealing about the data because we were able to see that if the distribution of the target variable is very similar across the different groups of a feature, then it would not give meaningful results in a model. The feature would contribute mostly noise to the model since if an observation was in one group or the other does not typically change the total claim amount. This process allowed us to safely remove State Index, Policy Type Index, Gender Index, and Policy Index from our features. We elected to keep Education Index and Marital Status Index during this step because although the means were similar, there was a large discrepancy in the tails of the distributions that may lead to valuable contribution to the model. \\ 
+
+An additional step we took was checking for dominant groups among the features. If a group contained more than 90 percent of the observations it would make it ineffective in predicting. Our data did not contain any of these examples, however, a few of the groups had a very small amount of observations which could lead us to combining those groups if needed. 
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.55\textwidth]{State_Histo.png}
+\caption{Distribution of Claims by State Index}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+
+\begin{subfigure}{0.40\textwidth}
+\centering
+\includegraphics[width=\textwidth]{Coverage_Box.png}
+\caption{Coverage Index}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.40\textwidth}
+\centering
+\includegraphics[width=\textwidth]{Vehicle_Class_Box.png}
+\caption{Vehicle Class Index}
+\end{subfigure}
+
+\vspace{0.25cm}
+
+\begin{subfigure}{0.40\textwidth}
+\centering
+\includegraphics[width=\textwidth]{Income_Box.png}
+\caption{Income Index}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.40\textwidth}
+\centering
+\includegraphics[width=\textwidth]{Location_Box.png}
+\caption{Location Index}
+\end{subfigure}
+
+\caption{Key EDA boxplots of Total Claim Amount across selected index variables.}
+\end{figure}
+
+\subsection*{Model Training}
+
+To begin training the model, we removed all non-indexed features and split the data into a feature data frame (X) and a target data frame (Y). We split the data into 80 percent train and 20 percent test. We set our initial parameters for the XGBoost model as follows: objective: reg:squarederror, tree method: hist, max depth: 5, eta: 0.1, subsample: 0.5, colsample by tree: 0.5, seed: 7. We trained our initial model with 250 boost rounds and it yielded a root mean squared error of 159.7249 and R-squared of 0.8299. \\ 
+
+The initial model performed considerably well. Predicting total claim amount with a root mean squared error of 164 dollars is workable considering the mean of total claim amount in the dataset is 586. \\
+
+We adjusted the feature dataset slightly to compare scores. We added "Months Since Last Claim" which slightly decreased our scores, so we excluded it in further iterations. We also passed in the non-indexed version of the income feature which allowed XGBoost to do its own bin splitting. This yielded slightly better results likely because XGBoost was able to locate the optimal bin parameters within the data. \\ 
+
+Upon trial and error, we found that changing the parameter max depth to 4 gave the best results and we decided to exclude "Education Index" because of a likely correlation with "Income". This exclusion will help us avoid overfitting. \\
+
+In order to find the optimal number of boosting rounds we applied 5-fold cross validation to our model. This process allowed us to plot the test root mean squared error and train root mean squared error across each boost round. This revealed that around the test root mean squared error decreased with the train root mean squared error until around the 50th boost round where it leveled off for the next 200 rounds. This finding indicated that boosting this model for more than 50 rounds was making our model susceptible to overfitting. In the next iteration of our model we boosted for just 50 rounds and achieved a test root mean squared error of 161.6609 and R-squared value of 0.8258. Although the root mean squared error slightly increased, we ran 200 less boosting rounds which is a net positive for the robustness of our model. In the long run we expect this model to perform better on unseen data because it was boosted less; therefore, less specialized on the testing data. \\ 
+
+This final iteration of the model showed that we could predict the total claim amount for each observation with strong accuracy. \\
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.65\textwidth]{Cross_Validation.png}
+\caption{Train and test RMSE from 5-fold cross validation across boosting rounds.}
+\end{figure}
+
+\subsection*{Feature Importance}
+
+In order to answer our second question we used an important feature of XGBoost called 'gain'. Within decision trees, each split is made in a way that will produce the purest leafs of the tree. Gain is the average improvement in loss across all splits where the specific feature is used. A high gain shows that the feature contributed a large reduction in the loss function across all the times where it was the criteria the data was split on. Using the gain metric, we are able to answer our second research question based on our dataset. \\ 
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.65\textwidth]{Importance_Graph.png}
+\caption{XGBoost feature importance based on gain.}
+\end{figure}
+
+\subsection*{Risk Classification}
+
+To answer our third research question we used the distribution of our target variable to create percentiles of claim severity. Using those percentiles as bounds, we labeled each observation into a relative risk level based on what bin its total claim amount fell into. This method allowed us to partition the dataset into groups such as Low Risk, Medium Risk, High Risk, and Very High Risk based solely on the actual loss amounts observed in the data.
+
+By assigning each policyholder to one of these groups, we were able to get a clearer picture of how claim severity varies across the population. This type of segmentation is valuable for an insurance carrier because it provides an interpretable framework for understanding which individuals are more likely to generate larger claims. Although our labels are relative to this dataset rather than absolute industry-wide standards, the approach still demonstrates how severity-based grouping can support pricing decisions, underwriting guidelines, and reserve planning. Future work could incorporate more advanced clustering or risk-adjusted thresholds, but the percentile-based method performed well for our purposes.
+ 
+
+\section*{Conclusion}
+
+This project combined exploratory data analysis with gradient-boosted decision trees to understand and model auto insurance claim severity. Our EDA stage helped us identify which categorical variables showed meaningful differences in claim outcomes, and it also ensured that we removed features that would have introduced noise into the model. After preparing the data, XGBoost proved to be an effective modeling choice because of its ability to capture nonlinear patterns and interactions that are common in insurance datasets.
+
+The final model achieved strong predictive accuracy with an RMSE near 160, which is reasonable given that the average claim amount was around 586 dollars. This means the model was able to estimate severity with a relatively small amount of error compared to the typical scale of the claims. The feature importance analysis revealed that location, vehicle class, coverage level, and income were major contributors to variance in claim severity. These results align with industry intuition, where geographic risk, vehicle type, and socio-economic indicators are known to influence loss patterns.
+
+The risk classification step added a practical component to the analysis by grouping policyholders into severity-based tiers. Even though these tiers are relative to our dataset, they demonstrate how an insurer can categorize customers for pricing or risk assessment based on data-driven thresholds rather than subjective judgment.
+
+Overall, the project shows that combining structured EDA with a modern machine learning approach can provide actionable insights for understanding claim severity. Additional data, such as historical claims per policyholder or time-based trends, could improve future models, but the methods used here offer a solid foundation for predictive analytics in an insurance context.
+
+
+\end{document}
